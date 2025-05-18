@@ -59,7 +59,7 @@ class GeminiChatbot:
                 break
 
 if __name__ == "__main__":
-    API_KEY = "AIzaSyCkOeDL6LCJYOm_gogxL8cq_TTQCfLe3wE"
+    API_KEY = ""
     
     # Initialize with your preferred model
     chatbot = GeminiChatbot(api_key=API_KEY)
