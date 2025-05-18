@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="#3b82f6">
+  <defs>
+    <style>
+      @keyframes pulse {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+      }
+      @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      @keyframes scan {
+        0%, 100% { transform: translateY(-10px); }
+        50% { transform: translateY(10px); }
+      }
+      .cam-body {
+        fill: #3b82f6;
+      }
+      .cam-lens {
+        fill: #1e40af;
+      }
+      .cam-light {
+        fill: #ef4444;
+        animation: pulse 2s infinite ease-in-out;
+      }
+      .cam-mount {
+        fill: #3b82f6;
+      }
+      .cam-scan {
+        fill: #3b82f6;
+        opacity: 0.3;
+        animation: scan 3s infinite ease-in-out;
+      }
+      .cam-rotate {
+        animation: rotate 10s infinite linear;
+        transform-origin: center center;
+      }
+    </style>
+  </defs>
+  
+  <!-- Camera Mount -->
+  <rect x="240" y="400" width="32" height="100" rx="5" class="cam-mount" />
+  
+  <!-- Camera Body -->
+  <g class="cam-rotate">
+    <rect x="140" y="160" width="232" height="120" rx="20" class="cam-body" />
+    <rect x="130" y="180" width="252" height="80" rx="10" class="cam-body" />
+    
+    <!-- Camera Lens -->
+    <circle cx="256" cy="220" r="60" class="cam-lens" />
+    <circle cx="256" cy="220" r="45" fill="#0f172a" />
+    <circle cx="256" cy="220" r="30" fill="#000000" />
+    <circle cx="276" cy="200" r="8" fill="white" opacity="0.6" />
+    
+    <!-- Camera Light -->
+    <circle cx="350" cy="180" r="8" class="cam-light" />
+  </g>
+  
+  <!-- Scan Rays -->
+  <g class="cam-scan">
+    <path d="M256 280 L200 350 L312 350 Z" />
+    <path d="M256 280 L170 380 L342 380 Z" opacity="0.5" />
+    <path d="M256 280 L140 410 L372 410 Z" opacity="0.3" />
+  </g>
+</svg> 

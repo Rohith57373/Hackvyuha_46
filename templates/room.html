@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Camera Stream - Room {{ room_id }}</title>
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script>tailwind.config={theme:{extend:{colors:{primary:'#3b82f6',secondary:'#64748b'},borderRadius:{'none':'0px','sm':'4px',DEFAULT:'8px','md':'12px','lg':'16px','xl':'20px','2xl':'24px','3xl':'32px','full':'9999px','button':'8px'}}}}</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <style>
+        :where([class^="ri-"])::before { content: "\f3c2"; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            grid-auto-rows: 300px;
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+            background-color: black;
+        }
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .status-online {
+            background-color: #10b981;
+        }
+        
+        /* Toggle switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            margin: 0 8px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #3b82f6;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        .detection-container {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background-color: rgba(0,0,0,0.5);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            z-index: 20;
+        }
+        .video-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        
+        /* Canvas overlay for detection */
+        canvas.detection-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 15;
+            pointer-events: none;
+            border-radius: 8px;
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* AI detection indicator */
+        .ai-detection-active {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transform: translateY(-20px) translateX(-50%);
+            transition: all 0.3s ease;
+        }
+        
+        .ai-detection-active.show {
+            opacity: 1;
+            transform: translateY(0) translateX(-50%);
+        }
+        
+        .ai-detection-active .pulse {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ff3b5c;
+            position: relative;
+        }
+        
+        .ai-detection-active .pulse:before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: #ff3b5c;
+            animation: pulse 1.5s ease-out infinite;
+            opacity: 0.6;
+            top: 0;
+            left: 0;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.6;
+            }
+            70% {
+                transform: scale(2);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+    </style>
+    <script>
+        const ROOM_ID = "{{ room_id }}";
+    </script>
+    <!-- PeerJS library -->
+    <script defer src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <!-- Socket.io client -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
+    <!-- Face detection API (TensorFlow.js) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection@1.0.2"></script>
+    <!-- Your client script -->
+    <script defer src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+</head>
+
+<body>
+    <div class="min-h-screen flex flex-col">
+        <!-- Face detection status indicator -->
+        <div id="aiDetectionStatus" class="ai-detection-active">
+            <div class="pulse"></div>
+            <span>AI Face Detection Active</span>
+        </div>
+    
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 flex items-center justify-center text-primary">
+                        <i class="ri-cctv-fill ri-2x"></i>
+                    </div>
+                    <a href="{{ url_for('index') }}" class="text-xl font-medium text-gray-800">SecureView</a>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="status-indicator status-online"></div>
+                        <span class="text-sm font-medium text-gray-700">Live Streaming</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 text-sm bg-gray-100 px-3 py-1.5 rounded-full">
+                        <span class="text-gray-600">Room ID:</span>
+                        <span class="font-medium text-gray-800">{{ room_id }}</span>
+                    </div>
+                    
+                    <button id="share-button" class="flex items-center gap-2 px-3 py-1.5 text-white bg-primary hover:bg-primary/90 rounded-lg">
+                        <div class="w-4 h-4 flex items-center justify-center">
+                            <i class="ri-share-line"></i>
+                        </div>
+                        <span>Share</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Bar -->
+        <nav class="nav-container">
+            <div class="container mx-auto">
+                <div class="nav-menu">
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a href="{{ url_for('index') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-dashboard-line"></i>
+                                </div>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link active">
+                                <div class="nav-icon">
+                                    <i class="ri-cctv-line"></i>
+                                </div>
+                                <span>Cameras</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('analytics') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-bar-chart-2-line"></i>
+                                </div>
+                                <span>Analytics</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-alarm-warning-line"></i>
+                                </div>
+                                <span>Alerts</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-user-line"></i>
+                                </div>
+                                <span>Profile</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+                <h1 class="text-2xl font-semibold text-gray-800">Live WebRTC Stream</h1>
+                
+                <div class="flex items-center gap-4">
+                    <!-- AI Detection Toggle -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-gray-700">AI Face Detection</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="ai-detection-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <button id="mute-audio" class="flex items-center gap-2 px-3 py-1.5 text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div class="w-4 h-4 flex items-center justify-center">
+                            <i class="ri-mic-line"></i>
+                        </div>
+                        <span>Mute</span>
+                    </button>
+                    
+                    <button id="stop-video" class="flex items-center gap-2 px-3 py-1.5 text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div class="w-4 h-4 flex items-center justify-center">
+                            <i class="ri-video-line"></i>
+                        </div>
+                        <span>Stop Video</span>
+                    </button>
+                    
+                    <a href="{{ url_for('index') }}" class="flex items-center gap-2 px-3 py-1.5 text-white bg-red-500 hover:bg-red-600 rounded-lg">
+                        <div class="w-4 h-4 flex items-center justify-center">
+                            <i class="ri-close-line"></i>
+                        </div>
+                        <span>Leave</span>
+                    </a>
+                </div>
+            </div>
+            
+            <div id="video-grid"></div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 py-4">
+            <div class="container mx-auto px-4">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">© 2024 SecureView. All rights reserved.</p>
+                    <div class="flex items-center gap-4">
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Privacy Policy</a>
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Terms of Service</a>
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Contact</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Share button functionality
+        document.getElementById('share-button').addEventListener('click', () => {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Room URL copied to clipboard!');
+            });
+        });
+
+        // Mute/unmute audio
+        const muteAudioBtn = document.getElementById('mute-audio');
+        let isAudioMuted = false;
+        muteAudioBtn.addEventListener('click', () => {
+            isAudioMuted = !isAudioMuted;
+            const myStream = document.querySelector('video')?.srcObject;
+            if (myStream) {
+                myStream.getAudioTracks().forEach(track => {
+                    track.enabled = !isAudioMuted;
+                });
+                muteAudioBtn.innerHTML = isAudioMuted ? 
+                    `<div class="w-4 h-4 flex items-center justify-center"><i class="ri-mic-off-line"></i></div><span>Unmute</span>` :
+                    `<div class="w-4 h-4 flex items-center justify-center"><i class="ri-mic-line"></i></div><span>Mute</span>`;
+            }
+        });
+
+        // Stop/start video
+        const stopVideoBtn = document.getElementById('stop-video');
+        let isVideoStopped = false;
+        stopVideoBtn.addEventListener('click', () => {
+            isVideoStopped = !isVideoStopped;
+            const myStream = document.querySelector('video')?.srcObject;
+            if (myStream) {
+                myStream.getVideoTracks().forEach(track => {
+                    track.enabled = !isVideoStopped;
+                });
+                stopVideoBtn.innerHTML = isVideoStopped ? 
+                    `<div class="w-4 h-4 flex items-center justify-center"><i class="ri-video-add-line"></i></div><span>Start Video</span>` :
+                    `<div class="w-4 h-4 flex items-center justify-center"><i class="ri-video-line"></i></div><span>Stop Video</span>`;
+            }
+        });
+        
+        // AI Detection toggle indicator
+        const aiToggle = document.getElementById('ai-detection-toggle');
+        const aiDetectionStatus = document.getElementById('aiDetectionStatus');
+        
+        if (aiToggle) {
+            aiToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    aiDetectionStatus.classList.add('show');
+                } else {
+                    aiDetectionStatus.classList.remove('show');
+                }
+            });
+        }
+    </script>
+</body>
+
+</html> 

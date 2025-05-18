@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - SecureView</title>
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script>tailwind.config={theme:{extend:{colors:{primary:'#3b82f6',secondary:'#64748b'},borderRadius:{'none':'0px','sm':'4px',DEFAULT:'8px','md':'12px','lg':'16px','xl':'20px','2xl':'24px','3xl':'32px','full':'9999px'}}}}</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <style>
+        :where([class^="ri-"])::before { content: "\f3c2"; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .profile-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        .tab-button {
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        .tab-button:hover {
+            background-color: #f1f5f9;
+        }
+        .tab-button.active {
+            background-color: #e0f2fe;
+            color: #0ea5e9;
+        }
+        .tab-button.active .tab-icon {
+            color: #0ea5e9;
+        }
+        .tab-icon {
+            color: #64748b;
+        }
+        .badge {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 flex items-center justify-center text-primary">
+                        <i class="ri-cctv-fill ri-2x"></i>
+                    </div>
+                    <h1 class="text-xl font-['Pacifico'] text-gray-800">SecureView</h1>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <div class="w-5 h-5 flex items-center justify-center text-gray-400">
+                                <i class="ri-search-line"></i>
+                            </div>
+                        </div>
+                        <input type="text" class="bg-gray-50 border-none text-gray-900 text-sm rounded-lg block w-64 pl-10 p-2.5 focus:ring-2 focus:ring-primary/20 focus:outline-none" placeholder="Search...">
+                    </div>
+                    
+                    <button class="relative p-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-full transition-colors">
+                        <div class="w-6 h-6 flex items-center justify-center">
+                            <i class="ri-notification-3-line"></i>
+                        </div>
+                        <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                    </button>
+                    
+                    <button class="p-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-full transition-colors">
+                        <div class="w-6 h-6 flex items-center justify-center">
+                            <i class="ri-settings-3-line"></i>
+                        </div>
+                    </button>
+                    
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-gray-200 rounded-full overflow-hidden">
+                            <img src="https://readdy.ai/api/search-image?query=professional%20headshot%20of%20a%20security%20officer%2C%20male%2C%2040s%2C%20serious%20expression%2C%20security%20uniform%2C%20high%20quality%20portrait&width=100&height=100&seq=1&orientation=squarish" alt="User profile" class="w-full h-full object-cover">
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">James Wilson</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Navigation Bar -->
+        <nav class="nav-container">
+            <div class="container mx-auto">
+                <div class="nav-menu">
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a href="{{ url_for('index') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-dashboard-line"></i>
+                                </div>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item nav-dropdown">
+                            <a href="{{ url_for('create_room') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-cctv-line"></i>
+                                </div>
+                                <span>Cameras</span>
+                            </a>
+                            <div class="nav-dropdown-content">
+                                <div class="nav-dropdown-header">
+                                    <h3 class="text-sm font-medium text-gray-700">Available Videos</h3>
+                                </div>
+                                <div class="nav-dropdown-list">
+                                    {% for id, camera in cameras.items() %}
+                                    <a href="{{ url_for('index', camera_id=id) }}" class="nav-dropdown-item">
+                                        <div class="camera-icon">
+                                            <i class="ri-video-line"></i>
+                                        </div>
+                                        <span>{{ camera.title }}</span>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('analytics') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-bar-chart-2-line"></i>
+                                </div>
+                                <span>Analytics</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('alerts') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-alarm-warning-line"></i>
+                                </div>
+                                <span>Alerts</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('user_profile') }}" class="nav-link active">
+                                <div class="nav-icon">
+                                    <i class="ri-user-line"></i>
+                                </div>
+                                <span>Profile</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Profile Settings</h1>
+                <button class="px-3 py-1.5 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary/90">
+                    Save Changes
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Profile Sidebar -->
+                <div class="md:col-span-1">
+                    <div class="profile-card p-4 mb-4">
+                        <div class="flex flex-col items-center">
+                            <div class="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow mb-3">
+                                <img src="https://readdy.ai/api/search-image?query=professional%20headshot%20of%20a%20security%20officer%2C%20male%2C%2040s%2C%20serious%20expression%2C%20security%20uniform%2C%20high%20quality%20portrait&width=200&height=200&seq=1&orientation=squarish" alt="User profile" class="w-full h-full object-cover">
+                            </div>
+                            <h2 class="font-semibold text-gray-800 text-lg">James Wilson</h2>
+                            <p class="text-gray-500 text-sm">Security Administrator</p>
+                            
+                            <div class="flex items-center gap-1 mt-2 bg-green-100 px-2 py-0.5 rounded text-xs text-green-700">
+                                <i class="ri-checkbox-circle-fill"></i>
+                                <span>Verified Account</span>
+                            </div>
+                            
+                            <button class="mt-4 w-full px-3 py-2 bg-gray-50 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-100">
+                                <i class="ri-camera-line mr-1.5"></i> Change Photo
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-card">
+                        <ul>
+                            <li>
+                                <button class="tab-button active w-full text-left">
+                                    <i class="ri-user-settings-line tab-icon mr-2"></i>
+                                    <span>Personal Information</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button class="tab-button w-full text-left">
+                                    <i class="ri-shield-keyhole-line tab-icon mr-2"></i>
+                                    <span>Security</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button class="tab-button w-full text-left flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <i class="ri-notification-4-line tab-icon mr-2"></i>
+                                        <span>Notifications</span>
+                                    </div>
+                                    <span class="badge bg-red-100 text-red-600">3</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button class="tab-button w-full text-left">
+                                    <i class="ri-key-line tab-icon mr-2"></i>
+                                    <span>Access & Permissions</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button class="tab-button w-full text-left">
+                                    <i class="ri-history-line tab-icon mr-2"></i>
+                                    <span>Activity Log</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button class="tab-button w-full text-left text-red-500">
+                                    <i class="ri-logout-box-line tab-icon mr-2"></i>
+                                    <span>Logout</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Profile Content -->
+                <div class="md:col-span-3">
+                    <div class="profile-card mb-6">
+                        <div class="p-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-800">Personal Information</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                    <input type="text" value="James" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                    <input type="text" value="Wilson" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input type="email" value="james.wilson@secureview.com" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                    <input type="tel" value="+1 (555) 123-4567" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                                    <input type="text" value="Security Administrator" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                                    <input type="text" value="Security Operations" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                </div>
+                            </div>
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <input type="text" value="1234 Security Blvd" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary mb-2">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <input type="text" value="Security City" placeholder="City" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <input type="text" value="CA" placeholder="State" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <input type="text" value="90210" placeholder="ZIP" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                                <textarea rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">Experienced security professional with over 10 years in the field. Specializing in CCTV monitoring systems and security protocols.</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-card mb-6">
+                        <div class="p-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-800">Security Settings</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="mb-6">
+                                <h4 class="font-medium text-gray-700 mb-2">Change Password</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm text-gray-700 mb-1">Current Password</label>
+                                        <input type="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="••••••••">
+                                    </div>
+                                    <div></div>
+                                    <div>
+                                        <label class="block text-sm text-gray-700 mb-1">New Password</label>
+                                        <input type="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="••••••••">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-700 mb-1">Confirm New Password</label>
+                                        <input type="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="••••••••">
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200">Update Password</button>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-gray-100 pt-6">
+                                <h4 class="font-medium text-gray-700 mb-2">Two-Factor Authentication</h4>
+                                <div class="flex items-center justify-between p-3 border border-green-100 rounded-md bg-green-50 mb-3">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 mr-3">
+                                            <i class="ri-shield-check-line"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-gray-800">2FA is currently enabled</p>
+                                            <p class="text-sm text-gray-600">Your account is secured with Google Authenticator</p>
+                                        </div>
+                                    </div>
+                                    <button class="px-3 py-1 bg-red-100 text-red-600 rounded text-sm hover:bg-red-200">Disable</button>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-3">We recommend using an authenticator app for the strongest security. You can also use SMS as a backup.</p>
+                                <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200 mr-2">Change 2FA Method</button>
+                                <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200">Generate Backup Codes</button>
+                            </div>
+                            
+                            <div class="border-t border-gray-100 pt-6 mt-6">
+                                <h4 class="font-medium text-gray-700 mb-2">Session Management</h4>
+                                <div class="mb-3">
+                                    <div class="flex items-center justify-between p-3 border border-gray-100 rounded-md hover:bg-gray-50">
+                                        <div class="flex items-center">
+                                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mr-3">
+                                                <i class="ri-computer-line"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-800">Windows PC - Chrome</p>
+                                                <p class="text-xs text-gray-600">Current session • 192.168.1.5 • Last active: Just now</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">Current</span>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 border border-gray-100 rounded-md hover:bg-gray-50 mt-2">
+                                        <div class="flex items-center">
+                                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mr-3">
+                                                <i class="ri-smartphone-line"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-800">iPhone - Safari</p>
+                                                <p class="text-xs text-gray-600">Mobile • 98.76.54.32 • Last active: 2 hours ago</p>
+                                            </div>
+                                        </div>
+                                        <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200">Sign Out</button>
+                                    </div>
+                                </div>
+                                <button class="px-3 py-2 bg-red-100 text-red-600 rounded text-sm hover:bg-red-200">Sign Out from All Devices</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-card mb-6">
+                        <div class="p-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-800">Notification Preferences</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="mb-6">
+                                <h4 class="font-medium text-gray-700 mb-2">Email Notifications</h4>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-800">Security Alerts</p>
+                                            <p class="text-xs text-gray-500">Receive notifications about suspicious activities</p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" value="" class="sr-only peer" checked>
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-800">System Status Updates</p>
+                                            <p class="text-xs text-gray-500">Updates about system maintenance and performance</p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" value="" class="sr-only peer" checked>
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-800">Camera Alerts</p>
+                                            <p class="text-xs text-gray-500">Notifications when cameras detect significant activity</p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" value="" class="sr-only peer" checked>
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-800">Weekly Reports</p>
+                                            <p class="text-xs text-gray-500">Weekly summary of system performance and events</p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" value="" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-gray-100 pt-6">
+                                <h4 class="font-medium text-gray-700 mb-2">Push Notifications</h4>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-800">Mobile Alerts</p>
+                                            <p class="text-xs text-gray-500">Send urgent security alerts to your mobile device</p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" value="" class="sr-only peer" checked>
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-800">Browser Notifications</p>
+                                            <p class="text-xs text-gray-500">Receive notifications in your web browser</p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" value="" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-card">
+                        <div class="p-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-800">Access Log</h3>
+                        </div>
+                        <div class="p-4">
+                            <div class="mb-4 flex justify-between items-center">
+                                <h4 class="text-sm font-medium text-gray-700">Recent Account Activity</h4>
+                                <button class="text-xs text-primary hover:underline">Export Log</button>
+                            </div>
+                            <div class="divide-y divide-gray-100">
+                                <div class="py-3">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mr-3">
+                                            <i class="ri-login-circle-line"></i>
+                                        </div>
+                                        <div class="flex-grow">
+                                            <p class="text-sm text-gray-800">Successful login</p>
+                                            <p class="text-xs text-gray-500">Today, 9:42 AM • 192.168.1.5 • Chrome on Windows</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="py-3">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 mr-3">
+                                            <i class="ri-settings-5-line"></i>
+                                        </div>
+                                        <div class="flex-grow">
+                                            <p class="text-sm text-gray-800">Security settings updated</p>
+                                            <p class="text-xs text-gray-500">Yesterday, 4:23 PM • 192.168.1.5 • Chrome on Windows</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="py-3">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600 mr-3">
+                                            <i class="ri-shield-keyhole-line"></i>
+                                        </div>
+                                        <div class="flex-grow">
+                                            <p class="text-sm text-gray-800">Password changed</p>
+                                            <p class="text-xs text-gray-500">Jun 15, 2023, 10:31 AM • 192.168.1.5 • Chrome on Windows</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="py-3">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-red-600 mr-3">
+                                            <i class="ri-error-warning-line"></i>
+                                        </div>
+                                        <div class="flex-grow">
+                                            <p class="text-sm text-gray-800">Failed login attempt</p>
+                                            <p class="text-xs text-gray-500">Jun 12, 2023, 8:47 PM • 98.76.54.32 • Unknown device</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-center">
+                                <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200">
+                                    View Full Activity Log
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 py-4">
+            <div class="container mx-auto px-4">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">© 2024 SecureView. All rights reserved.</p>
+                    <div class="flex items-center gap-4">
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Privacy Policy</a>
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Terms of Service</a>
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Contact</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab switching functionality
+            const tabButtons = document.querySelectorAll('.tab-button');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Remove active class from all buttons
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    // Add active class to clicked button
+                    button.classList.add('active');
+                    
+                    // In a real implementation, we would show/hide content here
+                    console.log('Tab clicked:', button.querySelector('span').textContent);
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

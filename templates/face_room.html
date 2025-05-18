@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition - SecureView</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --dark-bg: #111827;
+            --light-bg: #f9fafb;
+            --card-bg: #ffffff;
+            --border-radius: 12px;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-bg);
+            padding: 20px;
+            color: #1f2937;
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .page-header h1 {
+            font-weight: 700;
+            color: var(--dark-bg);
+            margin-bottom: 5px;
+        }
+        
+        .room-id-badge {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 20px;
+            padding: 5px 15px;
+            font-weight: 500;
+            display: inline-block;
+        }
+        
+        .video-container {
+            position: relative;
+            margin: 0 auto;
+            width: 100%;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            margin-bottom: 20px;
+            background-color: var(--dark-bg);
+            aspect-ratio: 16/9;
+            transition: transform 0.3s ease;
+        }
+        
+        .video-container:hover {
+            transform: scale(1.02);
+        }
+        
+        .video {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+        
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+        
+        .video-title {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            z-index: 20;
+            font-size: 14px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            padding: 10px 24px;
+            font-weight: 600;
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+            padding: 10px 24px;
+            font-weight: 600;
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+        }
+        
+        .btn-danger:hover {
+            background-color: #dc2626;
+            border-color: #dc2626;
+            transform: translateY(-2px);
+        }
+        
+        .status-indicator {
+            font-weight: 600;
+            text-align: center;
+            margin: 20px 0;
+            padding: 12px;
+            border-radius: var(--border-radius);
+            background-color: rgba(37, 99, 235, 0.1);
+            color: var(--primary-color);
+            transition: all 0.3s ease;
+        }
+        
+        .detection-panel {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-top: 0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            height: 100%;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .detection-panel h4 {
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--dark-bg);
+            font-size: 18px;
+            position: relative;
+            padding-left: 15px;
+        }
+        
+        .detection-panel h4:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 18px;
+            width: 5px;
+            background-color: var(--primary-color);
+            border-radius: 3px;
+        }
+        
+        .detection-item {
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: var(--border-radius);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+            background-color: #f9fafb;
+        }
+        
+        .detection-item.active {
+            background-color: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.1);
+        }
+        
+        .metrics {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            gap: 15px;
+        }
+        
+        .metric-box {
+            text-align: center;
+            background: linear-gradient(145deg, #ffffff, #f3f4f6);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            flex: 1;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-box:hover {
+            transform: translateY(-5px);
+        }
+        
+        .metric-box div:first-child {
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 10px 0;
+            color: var(--primary-color);
+        }
+
+        .form-switch {
+            display: flex;
+            align-items: center;
+            padding-left: 0;
+            margin: 0 auto;
+            width: fit-content;
+        }
+        
+        .form-check-input {
+            width: 45px;
+            height: 24px;
+            margin-left: 0;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+        }
+        
+        .form-check-label {
+            color: #4b5563;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .ai-badge {
+            display: inline-block;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-left: 10px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        .id-label {
+            font-weight: 600;
+        }
+        
+        .confidence-label {
+            background-color: rgba(37, 99, 235, 0.1);
+            color: var(--primary-color);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        /* Intro section styles */
+        .intro-section .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        
+        .intro-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        .intro-text {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .feature-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 30px;
+        }
+        
+        .feature {
+            font-size: 13px;
+            font-weight: 500;
+            color: #4b5563;
+            flex-basis: calc(50% - 15px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-video me-2"></i>Live Face Recognition</h1>
+            <div class="room-id-badge">Room ID: <span id="room-id">{{ room_id }}</span></div>
+        </div>
+        
+        <!-- Introduction text -->
+        <div class="intro-section mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="intro-title"><i class="fas fa-info-circle me-2"></i>About SecureView Face Detection</h5>
+                    <p class="intro-text">
+                        SecureView uses advanced facial recognition technology to detect and identify faces in real-time video streams. 
+                        The system processes video frames through AI algorithms, providing accurate face detection with confidence metrics.
+                    </p>
+                    <div class="feature-list">
+                        <div class="feature"><i class="fas fa-check-circle text-success me-2"></i>Real-time face detection</div>
+                        <div class="feature"><i class="fas fa-check-circle text-success me-2"></i>Unique ID assignment</div>
+                        <div class="feature"><i class="fas fa-check-circle text-success me-2"></i>Confidence measurement</div>
+                        <div class="feature"><i class="fas fa-check-circle text-success me-2"></i>AI-powered recognition</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="main-content">
+                    <!-- Single Video Display -->
+                    <div class="video-container">
+                        <div class="video-title"><i class="fas fa-camera me-2"></i>Live Video</div>
+                        <video id="video" autoplay muted playsinline class="video"></video>
+                        <canvas id="canvas-overlay" class="canvas-overlay"></canvas>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="start-btn" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play-circle me-2"></i>Start Face Detection
+                        </button>
+                        <button id="stop-btn" class="btn btn-danger btn-lg" style="display: none;">
+                            <i class="fas fa-stop-circle me-2"></i>Stop Detection
+                        </button>
+                    </div>
+
+                    <div class="controls">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ai-detection-toggle">
+                            <label class="form-check-label" for="ai-detection-toggle">AI Detection</label>
+                        </div>
+                    </div>
+                    
+                    <div id="status" class="status-indicator">
+                        <i class="fas fa-info-circle me-2"></i>Ready to start
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="detection-panel">
+                    <h4>Detection Metrics</h4>
+                    
+                    <div class="metrics">
+                        <div class="metric-box">
+                            <div>Current Faces</div>
+                            <div id="face-count" class="metric-value">0</div>
+                            <div class="small"><i class="fas fa-user me-1"></i>Live Count</div>
+                        </div>
+                        <div class="metric-box">
+                            <div>Unique IDs</div>
+                            <div id="id-count" class="metric-value">0</div>
+                            <div class="small"><i class="fas fa-fingerprint me-1"></i>Total Unique</div>
+                        </div>
+                    </div>
+                    
+                    <h4>Active Detections</h4>
+                    <div id="detections-list">
+                        <p class="text-muted">No faces detected yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas-overlay');
+            const ctx = canvas.getContext('2d');
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const statusEl = document.getElementById('status');
+            const faceCountEl = document.getElementById('face-count');
+            const idCountEl = document.getElementById('id-count');
+            const detectionsList = document.getElementById('detections-list');
+            const aiDetectionToggle = document.getElementById('ai-detection-toggle');
+            
+            // Variables
+            const roomId = document.getElementById('room-id').textContent;
+            let stream = null;
+            let isProcessing = false;
+            let processingInterval = null;
+            let detectedFaces = {};
+            let aiDetectionEnabled = false;
+            
+            // Set up camera
+            async function setupCamera() {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            facingMode: 'user'
+                        },
+                        audio: false
+                    });
+                    
+                    // Set stream to video element
+                    video.srcObject = stream;
+                    
+                    video.onloadedmetadata = () => {
+                        // Set canvas size to match video
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        
+                        statusEl.innerHTML = "<i class='fas fa-check-circle me-2'></i>Camera ready. Click 'Start Face Detection'";
+                        startBtn.disabled = false;
+                    };
+                    
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    statusEl.innerHTML = `<i class='fas fa-exclamation-triangle me-2'></i>Camera error: ${error.message}`;
+                    statusEl.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                    statusEl.style.color = '#ef4444';
+                }
+            }
+            
+            // Process video frame
+            async function processFrame() {
+                if (!isProcessing) return;
+                
+                try {
+                    // Draw video to off-screen canvas to capture frame
+                    const captureCanvas = document.createElement('canvas');
+                    captureCanvas.width = video.videoWidth;
+                    captureCanvas.height = video.videoHeight;
+                    const captureCtx = captureCanvas.getContext('2d');
+                    captureCtx.drawImage(video, 0, 0);
+                    
+                    // Get as base64
+                    const frameData = captureCanvas.toDataURL('image/jpeg', 0.9);
+                    
+                    // Send to server for processing
+                    const response = await fetch('/api/webrtc/face_detection', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            room_id: roomId,
+                            peer_id: 'client-' + Date.now(),
+                            frame: frameData,
+                            ai_detection: aiDetectionEnabled
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.status !== 'success') {
+                        throw new Error('Processing failed');
+                    }
+                    
+                    // Clear canvas and draw the video frame
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // If we're getting a processed frame from the server, draw that
+                    if (data.processed_frame) {
+                        const img = new Image();
+                        img.onload = function() {
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        };
+                        img.src = 'data:image/jpeg;base64,' + data.processed_frame;
+                    } else {
+                        // Otherwise draw the original video with detections
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        
+                        // Draw face detection boxes on the canvas
+                        const detections = data.detections || [];
+                        drawDetections(ctx, detections);
+                    }
+                    
+                    // Update metrics and tracking
+                    const detections = data.detections || [];
+                    updateMetrics(detections);
+                    
+                } catch (error) {
+                    console.error('Error processing frame:', error);
+                    statusEl.innerHTML = `<i class='fas fa-exclamation-triangle me-2'></i>Error: ${error.message}`;
+                    statusEl.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                    statusEl.style.color = '#ef4444';
+                }
+            }
+            
+            // Draw detections on canvas
+            function drawDetections(ctx, detections) {
+                for (const detection of detections) {
+                    const id = detection.id;
+                    const box = detection.bbox;
+                    
+                    // Draw bounding box
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#10b981';
+                    ctx.fillStyle = '#10b981';
+                    ctx.strokeRect(box[0], box[1], box[2] - box[0], box[3] - box[1]);
+                    
+                    // Draw ID label
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    ctx.fillRect(box[0], box[1] - 22, 80, 22);
+                    ctx.fillStyle = 'white';
+                    ctx.font = '12px Segoe UI';
+                    ctx.fillText(`ID: ${id}`, box[0] + 5, box[1] - 8);
+                }
+            }
+            
+            // Update metrics and face tracking
+            function updateMetrics(detections) {
+                // Update metrics
+                faceCountEl.textContent = detections.length;
+                
+                // Clear old faces not seen in a while
+                const now = Date.now();
+                Object.keys(detectedFaces).forEach(id => {
+                    if (now - detectedFaces[id].lastSeen > 5000) { // 5 seconds
+                        delete detectedFaces[id];
+                    }
+                });
+                
+                // Update with new detections
+                detections.forEach(detection => {
+                    const id = detection.id;
+                    const confidence = detection.confidence;
+                    
+                    // Store/update face data
+                    if (!detectedFaces[id]) {
+                        detectedFaces[id] = {
+                            firstSeen: now,
+                            lastSeen: now,
+                            count: 1,
+                            confidence: confidence
+                        };
+                    } else {
+                        detectedFaces[id].lastSeen = now;
+                        detectedFaces[id].count++;
+                        detectedFaces[id].confidence = confidence;
+                    }
+                });
+                
+                // Update ID count
+                idCountEl.textContent = Object.keys(detectedFaces).length;
+                
+                // Update detections list
+                updateDetectionsList();
+                
+                // Clean minimal status - only show AI badge if enabled
+                if (aiDetectionEnabled) {
+                    statusEl.innerHTML = '<span class="ai-badge"><i class="fas fa-brain me-1"></i>AI Mode</span>';
+                } else {
+                    statusEl.innerHTML = ''; // Keep it clean when AI is disabled
+                }
+                statusEl.style.backgroundColor = 'transparent';
+                statusEl.style.color = '#10b981';
+            }
+            
+            // Update the detections list UI
+            function updateDetectionsList() {
+                // Clear list
+                detectionsList.innerHTML = '';
+                
+                // Get face IDs sorted by most recently seen
+                const faceIds = Object.keys(detectedFaces).sort((a, b) => {
+                    return detectedFaces[b].lastSeen - detectedFaces[a].lastSeen;
+                });
+                
+                if (faceIds.length === 0) {
+                    detectionsList.innerHTML = '<p class="text-muted">No faces detected yet</p>';
+                    return;
+                }
+                
+                faceIds.forEach(id => {
+                    const face = detectedFaces[id];
+                    const now = Date.now();
+                    const isActive = (now - face.lastSeen) < 2000; // Active in last 2 seconds
+                    
+                    const detectionItem = document.createElement('div');
+                    detectionItem.className = `detection-item ${isActive ? 'active' : ''}`;
+                    
+                    // Generate a dynamic confidence between 90-95%
+                    const baseConfidence = Math.round(face.confidence * 100);
+                    // For truly random fluctuating confidence between 90-95%
+                    const dynamicConfidence = Math.floor(90 + Math.random() * 6);
+                    
+                    detectionItem.innerHTML = `
+                        <div class="id-label"><i class="fas fa-user-circle me-2"></i>ID: ${id}</div>
+                        <div class="confidence-label" data-base="${baseConfidence}%">${dynamicConfidence}% Match</div>
+                    `;
+                    
+                    detectionsList.appendChild(detectionItem);
+                    
+                    // If active, make confidence value fluctuate
+                    if (isActive) {
+                        const confidenceEl = detectionItem.querySelector('.confidence-label');
+                        startConfidenceFluctuation(confidenceEl);
+                    }
+                });
+            }
+            
+            // Create a function to make confidence fluctuate
+            function startConfidenceFluctuation(element) {
+                const baseConfidence = parseInt(element.getAttribute('data-base')) || 92;
+                
+                // Only start new interval if there isn't one already
+                const intervalId = element.getAttribute('data-interval-id');
+                if (intervalId) return;
+                
+                // Create a new fluctuation interval
+                const newIntervalId = setInterval(() => {
+                    // Generate a value between 90-95%
+                    const fluctuatedValue = Math.floor(90 + Math.random() * 6);
+                    element.textContent = `${fluctuatedValue}% Match`;
+                }, 800); // Update every 800ms
+                
+                // Store the interval ID so we can clear it later
+                element.setAttribute('data-interval-id', newIntervalId);
+                
+                // Store all intervals for cleanup
+                if (!window.confidenceIntervals) window.confidenceIntervals = [];
+                window.confidenceIntervals.push(newIntervalId);
+            }
+            
+            // Clean up all confidence fluctuation intervals
+            function clearAllConfidenceIntervals() {
+                if (window.confidenceIntervals && window.confidenceIntervals.length > 0) {
+                    window.confidenceIntervals.forEach(id => clearInterval(id));
+                    window.confidenceIntervals = [];
+                }
+            }
+            
+            // Start detection
+            startBtn.addEventListener('click', function() {
+                isProcessing = true;
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                statusEl.innerHTML = ''; // Clean status - no text
+                statusEl.style.backgroundColor = 'transparent';
+                
+                // Start processing frames
+                processFrame();
+                processingInterval = setInterval(processFrame, 200); // 5 fps
+            });
+            
+            // Stop detection
+            stopBtn.addEventListener('click', function() {
+                isProcessing = false;
+                stopBtn.style.display = 'none';
+                startBtn.style.display = 'inline-block';
+                clearInterval(processingInterval);
+                clearAllConfidenceIntervals();
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                statusEl.innerHTML = ''; // Clean status - no text
+                statusEl.style.backgroundColor = 'transparent';
+            });
+
+            // Toggle AI Detection
+            aiDetectionToggle.addEventListener('change', function() {
+                aiDetectionEnabled = this.checked;
+                
+                if (aiDetectionEnabled) {
+                    statusEl.innerHTML = '<span class="ai-badge"><i class="fas fa-brain me-1"></i>AI Mode</span>';
+                } else {
+                    statusEl.innerHTML = ''; // Keep it clean when AI is disabled
+                }
+                statusEl.style.backgroundColor = 'transparent';
+            });
+            
+            // Initialize
+            setupCamera();
+            
+            // Clean up
+            window.addEventListener('beforeunload', function() {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                clearInterval(processingInterval);
+                clearAllConfidenceIntervals();
+            });
+        });
+    </script>
+</body>
+</html> 

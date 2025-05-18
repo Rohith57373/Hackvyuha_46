@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - SecureView</title>
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script>tailwind.config={theme:{extend:{colors:{primary:'#3b82f6',secondary:'#64748b'},borderRadius:{'none':'0px','sm':'4px',DEFAULT:'8px','md':'12px','lg':'16px','xl':'20px','2xl':'24px','3xl':'32px','full':'9999px','button':'8px'}}}}</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <!-- Chart.js for interactive graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <!-- ApexCharts for more advanced interactive charts -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+    <style>
+        :where([class^="ri-"])::before { content: "\f3c2"; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 300px;
+            width: 100%;
+        }
+        .mini-chart {
+            height: 100px;
+        }
+        .dashboard-card {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .dashboard-card:hover {
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 flex items-center justify-center text-primary">
+                        <i class="ri-cctv-fill ri-2x"></i>
+                    </div>
+                    <h1 class="text-xl font-['Pacifico'] text-gray-800">SecureView</h1>
+                </div>
+                
+                <div class="flex items-center gap-6">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <div class="w-5 h-5 flex items-center justify-center text-gray-400">
+                                <i class="ri-search-line"></i>
+                            </div>
+                        </div>
+                        <input type="text" class="bg-gray-50 border-none text-gray-900 text-sm rounded-lg block w-64 pl-10 p-2.5 focus:ring-2 focus:ring-primary/20 focus:outline-none" placeholder="Search analytics...">
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <button class="relative p-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-full transition-colors">
+                            <div class="w-6 h-6 flex items-center justify-center">
+                                <i class="ri-notification-3-line"></i>
+                            </div>
+                            <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                        </button>
+                        
+                        <button class="p-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-full transition-colors">
+                            <div class="w-6 h-6 flex items-center justify-center">
+                                <i class="ri-settings-3-line"></i>
+                            </div>
+                        </button>
+                        
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-gray-200 rounded-full overflow-hidden">
+                                <img src="https://readdy.ai/api/search-image?query=professional%20headshot%20of%20a%20security%20officer%2C%20male%2C%2040s%2C%20serious%20expression%2C%20security%20uniform%2C%20high%20quality%20portrait&width=100&height=100&seq=1&orientation=squarish" alt="User profile" class="w-full h-full object-cover">
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">James Wilson</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Navigation Bar -->
+        <nav class="nav-container">
+            <div class="container mx-auto">
+                <div class="nav-menu">
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a href="{{ url_for('index') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-dashboard-line"></i>
+                                </div>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item nav-dropdown">
+                            <a href="{{ url_for('create_room') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-cctv-line"></i>
+                                </div>
+                                <span>Cameras</span>
+                            </a>
+                            <div class="nav-dropdown-content">
+                                <div class="nav-dropdown-header">
+                                    <h3 class="text-sm font-medium text-gray-700">Available Videos</h3>
+                                </div>
+                                <div class="nav-dropdown-list">
+                                    {% for id, camera in cameras.items() %}
+                                    <a href="{{ url_for('index', camera_id=id) }}" class="nav-dropdown-item">
+                                        <div class="camera-icon">
+                                            <i class="ri-video-line"></i>
+                                        </div>
+                                        <span>{{ camera.title }}</span>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                                <div class="nav-dropdown-footer">
+                                    <button class="add-camera-btn" id="addCameraBtn">
+                                        <div class="camera-icon">
+                                            <i class="ri-add-line"></i>
+                                        </div>
+                                        <span>Upload New Video</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('analytics') }}" class="nav-link active">
+                                <div class="nav-icon">
+                                    <i class="ri-bar-chart-2-line"></i>
+                                </div>
+                                <span>Analytics</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-alarm-warning-line"></i>
+                                </div>
+                                <span>Alerts</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-user-line"></i>
+                                </div>
+                                <span>Profile</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <!-- Page Header -->
+            <div class="flex flex-wrap items-center justify-between mb-6">
+                <h1 class="text-2xl font-semibold text-gray-800">Video Analytics Dashboard</h1>
+                
+                <div class="flex items-center gap-4">
+                    <!-- Date Range Selector -->
+                    <div class="flex items-center bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                        <button class="flex items-center gap-2 text-sm text-gray-700">
+                            <span>Last 7 Days</span>
+                            <div class="w-4 h-4 flex items-center justify-center">
+                                <i class="ri-arrow-down-s-line"></i>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <button class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                        <div class="w-4 h-4 flex items-center justify-center">
+                            <i class="ri-download-2-line"></i>
+                        </div>
+                        <span>Export Data</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Key Metrics Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <!-- FPS Metric -->
+                <div class="metric-card bg-white rounded-lg p-4 shadow-sm">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-primary">
+                            <i class="ri-film-line"></i>
+                        </div>
+                        <span class="font-medium text-gray-700">Avg. FPS</span>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900" id="avgFps">28.5</h3>
+                            <p class="text-sm text-green-600 flex items-center">
+                                <i class="ri-arrow-up-s-line"></i>
+                                <span>2.3% vs last week</span>
+                            </p>
+                        </div>
+                        <div class="h-12 w-24">
+                            <canvas id="fpsSparkline"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Detection Accuracy -->
+                <div class="metric-card bg-white rounded-lg p-4 shadow-sm">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                            <i class="ri-checkbox-circle-line"></i>
+                        </div>
+                        <span class="font-medium text-gray-700">Detection Accuracy</span>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900" id="detectionAccuracy">94.8%</h3>
+                            <p class="text-sm text-green-600 flex items-center">
+                                <i class="ri-arrow-up-s-line"></i>
+                                <span>1.2% vs last week</span>
+                            </p>
+                        </div>
+                        <div class="h-12 w-24">
+                            <canvas id="accuracySparkline"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Face Matches -->
+                <div class="metric-card bg-white rounded-lg p-4 shadow-sm">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                            <i class="ri-user-search-line"></i>
+                        </div>
+                        <span class="font-medium text-gray-700">Face Matches</span>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900" id="faceMatches">156</h3>
+                            <p class="text-sm text-red-600 flex items-center">
+                                <i class="ri-arrow-down-s-line"></i>
+                                <span>3.5% vs last week</span>
+                            </p>
+                        </div>
+                        <div class="h-12 w-24">
+                            <canvas id="faceMatchesSparkline"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Processing Time -->
+                <div class="metric-card bg-white rounded-lg p-4 shadow-sm">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                            <i class="ri-time-line"></i>
+                        </div>
+                        <span class="font-medium text-gray-700">Avg. Processing Time</span>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900" id="processingTime">24ms</h3>
+                            <p class="text-sm text-green-600 flex items-center">
+                                <i class="ri-arrow-down-s-line"></i>
+                                <span>5.7% vs last week</span>
+                            </p>
+                        </div>
+                        <div class="h-12 w-24">
+                            <canvas id="processingTimeSparkline"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Charts -->
+            <div class="grid grid-cols-1 gap-6 mb-6">
+                <!-- FPS vs Time Chart -->
+                <div class="dashboard-card bg-white p-4">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4">FPS Performance</h3>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="fpsChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Accuracy vs Time Chart -->
+                <div class="dashboard-card bg-white p-4">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4">Detection Accuracy</h3>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="accuracyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Lower Charts / Comparison -->
+            <div class="grid grid-cols-1 gap-6 mb-6">
+                <!-- FPS vs Accuracy Comparison -->
+                <div class="dashboard-card bg-white p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-800">FPS vs Accuracy</h3>
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 bg-primary rounded-full"></div>
+                                <span class="text-xs text-gray-600">FPS</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <span class="text-xs text-gray-600">Accuracy</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="fpsVsAccuracyChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Face Detection Distribution -->
+                <div class="dashboard-card bg-white p-4">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4">Face Detection Distribution</h3>
+                    <div class="chart-container" style="height: 400px;">
+                        <div id="faceDetectionChart"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Camera Performance Comparison Table -->
+            <div class="dashboard-card bg-white p-4 mb-6">
+                <h3 class="text-lg font-medium text-gray-800 mb-4">Camera Performance Comparison</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Camera</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. FPS</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Accuracy</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faces Detected</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processing Time</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="cameraComparisonTable">
+                            <!-- Table rows will be dynamically populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 py-4">
+            <div class="container mx-auto px-4">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">© 2024 SecureView. All rights reserved.</p>
+                    <div class="flex items-center gap-4">
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Privacy Policy</a>
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Terms of Service</a>
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Contact</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+    <!-- Camera Upload Modal -->
+    <div class="camera-upload-modal" id="cameraUploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-lg font-medium text-gray-800">Upload New Video</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" id="closeModalBtn">
+                    <i class="ri-close-line text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadVideoForm" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="video_file" class="block text-sm font-medium text-gray-700 mb-2">Upload Video</label>
+                        <input type="file" id="video_file" name="video_file" accept=".mp4,.webm,.avi,.mov,.mkv"
+                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <p class="mt-1 text-xs text-gray-500">Supported formats: MP4, WebM, AVI, MOV, MKV (Max 200MB)</p>
+                    </div>
+                </form>
+                <div id="uploadStatus" class="hidden">
+                    <div class="flex items-center mb-2">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="uploadProgress" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <span id="uploadPercentage" class="text-sm text-gray-600 ml-2">0%</span>
+                    </div>
+                    <p id="uploadMessage" class="text-sm text-gray-600"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancelUploadBtn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="button" id="submitUploadBtn" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700">
+                    Upload
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Camera upload functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const addCameraBtn = document.getElementById('addCameraBtn');
+            const cameraUploadModal = document.getElementById('cameraUploadModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+            const submitUploadBtn = document.getElementById('submitUploadBtn');
+            const uploadVideoForm = document.getElementById('uploadVideoForm');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadProgress = document.getElementById('uploadProgress');
+            const uploadPercentage = document.getElementById('uploadPercentage');
+            const uploadMessage = document.getElementById('uploadMessage');
+            
+            // Open modal
+            addCameraBtn.addEventListener('click', function() {
+                cameraUploadModal.classList.add('open');
+            });
+            
+            // Close modal
+            function closeModal() {
+                cameraUploadModal.classList.remove('open');
+                uploadVideoForm.reset();
+                uploadStatus.classList.add('hidden');
+                uploadProgress.style.width = '0%';
+                uploadPercentage.textContent = '0%';
+                uploadMessage.textContent = '';
+            }
+            
+            closeModalBtn.addEventListener('click', closeModal);
+            cancelUploadBtn.addEventListener('click', closeModal);
+            
+            // Upload functionality
+            submitUploadBtn.addEventListener('click', function() {
+                const videoFile = document.getElementById('video_file').files[0];
+                
+                if (!videoFile) {
+                    alert('Please select a video file to upload');
+                    return;
+                }
+                
+                // Check file size (max 200MB)
+                if (videoFile.size > 200 * 1024 * 1024) {
+                    alert('File size exceeds 200MB limit');
+                    return;
+                }
+                
+                // Show upload status
+                uploadStatus.classList.remove('hidden');
+                uploadMessage.textContent = 'Uploading video...';
+                
+                // Create FormData
+                const formData = new FormData();
+                formData.append('video_file', videoFile);
+                
+                // Create XHR request
+                const xhr = new XMLHttpRequest();
+                
+                // Track upload progress
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        uploadProgress.style.width = percentComplete + '%';
+                        uploadPercentage.textContent = percentComplete + '%';
+                    }
+                });
+                
+                // Set up completion handler
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                uploadMessage.textContent = 'Upload successful! Refreshing...';
+                                uploadMessage.className = 'text-sm text-green-600';
+                                
+                                // Reload the page after a short delay
+                                setTimeout(function() {
+                                    window.location.reload();
+                                }, 1500);
+                            } else {
+                                uploadMessage.textContent = 'Error: ' + (response.error || 'Unknown error');
+                                uploadMessage.className = 'text-sm text-red-600';
+                            }
+                        } catch (e) {
+                            uploadMessage.textContent = 'Error parsing response';
+                            uploadMessage.className = 'text-sm text-red-600';
+                        }
+                    } else {
+                        uploadMessage.textContent = 'Error: ' + xhr.statusText;
+                        uploadMessage.className = 'text-sm text-red-600';
+                    }
+                };
+                
+                // Set up error handler
+                xhr.onerror = function() {
+                    uploadMessage.textContent = 'Network error occurred';
+                    uploadMessage.className = 'text-sm text-red-600';
+                };
+                
+                // Send the request
+                xhr.open('POST', '/api/upload_video', true);
+                xhr.send(formData);
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Comparison - SecureView</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background: #f5f5f5; 
+            padding: 20px; 
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            border: 3px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            margin-bottom: 15px;
+            aspect-ratio: 4/3;
+        }
+        .video {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+        .video-title {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Face Recognition Comparison</h1>
+        <p class="text-center">Room ID: <span id="room-id">{{ room_id }}</span></p>
+        
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <div class="video-container">
+                    <div class="video-title">Original Video</div>
+                    <video id="original-video" autoplay muted playsinline class="video"></video>
+                    <canvas id="original-canvas" class="canvas-overlay"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="video-container">
+                    <div class="video-title">Processed Video</div>
+                    <canvas id="processed-canvas" class="canvas-overlay"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mb-4">
+            <button id="start-btn" class="btn btn-success btn-lg me-3">Start Detection</button>
+            <button id="stop-btn" class="btn btn-danger btn-lg" style="display:none">Stop Detection</button>
+            <div class="form-check form-switch d-inline-block ms-3">
+                <input class="form-check-input" type="checkbox" id="ai-detection-toggle">
+                <label class="form-check-label" for="ai-detection-toggle">AI Detection</label>
+            </div>
+        </div>
+
+        <div id="status" class="alert alert-info text-center">Ready to start detection</div>
+        
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Detection Results</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6 text-center">
+                        <h5>Faces Found</h5>
+                        <div id="face-count" class="display-4">0</div>
+                    </div>
+                    <div class="col-6 text-center">
+                        <h5>Unique IDs</h5>
+                        <div id="id-count" class="display-4">0</div>
+                    </div>
+                </div>
+                
+                <hr>
+                <h5>Active Detections</h5>
+                <div id="detections-list" class="mt-3">
+                    <p class="text-muted">No faces detected yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const originalVideo = document.getElementById('original-video');
+            const originalCanvas = document.getElementById('original-canvas');
+            const originalCtx = originalCanvas.getContext('2d');
+            
+            const processedCanvas = document.getElementById('processed-canvas');
+            const processedCtx = processedCanvas.getContext('2d');
+            
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const statusEl = document.getElementById('status');
+            const faceCountEl = document.getElementById('face-count');
+            const idCountEl = document.getElementById('id-count');
+            const detectionsList = document.getElementById('detections-list');
+            const aiDetectionToggle = document.getElementById('ai-detection-toggle');
+            
+            // Variables
+            const roomId = document.getElementById('room-id').textContent;
+            let stream = null;
+            let isProcessing = false;
+            let processingInterval = null;
+            let detectedFaces = {};
+            let aiDetectionEnabled = false;
+            
+            // Set up camera
+            async function setupCamera() {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: 'user'
+                        },
+                        audio: false
+                    });
+                    
+                    // Set stream to video element
+                    originalVideo.srcObject = stream;
+                    
+                    originalVideo.onloadedmetadata = () => {
+                        // Set canvas sizes to match video
+                        originalCanvas.width = originalVideo.videoWidth;
+                        originalCanvas.height = originalVideo.videoHeight;
+                        processedCanvas.width = originalVideo.videoWidth;
+                        processedCanvas.height = originalVideo.videoHeight;
+                        
+                        statusEl.textContent = "Camera ready! Click 'Start Detection' to begin";
+                        startBtn.disabled = false;
+                    };
+                    
+                } catch (error) {
+                    console.error('Camera error:', error);
+                    statusEl.textContent = `Camera error: ${error.message}`;
+                    statusEl.className = 'alert alert-danger text-center';
+                }
+            }
+            
+            // Process video frame
+            async function processFrame() {
+                if (!isProcessing) return;
+                
+                try {
+                    // Draw video to off-screen canvas to capture frame
+                    const captureCanvas = document.createElement('canvas');
+                    captureCanvas.width = originalVideo.videoWidth;
+                    captureCanvas.height = originalVideo.videoHeight;
+                    const captureCtx = captureCanvas.getContext('2d');
+                    captureCtx.drawImage(originalVideo, 0, 0);
+                    
+                    // Get as base64
+                    const frameData = captureCanvas.toDataURL('image/jpeg', 0.9);
+                    
+                    // Send to server for processing
+                    const response = await fetch('/api/webrtc/face_detection', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            room_id: roomId,
+                            peer_id: 'client-' + Date.now(),
+                            frame: frameData,
+                            ai_detection: aiDetectionEnabled
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.status !== 'success') {
+                        throw new Error('Processing failed');
+                    }
+                    
+                    // Draw original video on left canvas
+                    originalCtx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
+                    originalCtx.drawImage(originalVideo, 0, 0, originalCanvas.width, originalCanvas.height);
+                    
+                    // Draw face boxes on original video
+                    drawDetections(originalCtx, data.detections || []);
+                    
+                    // Display processed frame on right canvas
+                    processedCtx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+                    
+                    if (data.processed_frame) {
+                        const img = new Image();
+                        img.onload = function() {
+                            processedCtx.drawImage(img, 0, 0, processedCanvas.width, processedCanvas.height);
+                        };
+                        img.src = 'data:image/jpeg;base64,' + data.processed_frame;
+                    }
+                    
+                    // Update metrics
+                    updateMetrics(data.detections || []);
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    statusEl.textContent = `Error: ${error.message}`;
+                    statusEl.className = 'alert alert-danger text-center';
+                }
+            }
+            
+            // Draw face detection boxes
+            function drawDetections(ctx, detections) {
+                for (const detection of detections) {
+                    const id = detection.id;
+                    const box = detection.bbox;
+                    
+                    // Draw bounding box
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'lime';
+                    ctx.strokeRect(box[0], box[1], box[2] - box[0], box[3] - box[1]);
+                    
+                    // Draw ID label
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(box[0], box[1] - 30, 60, 30);
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(`ID: ${id}`, box[0] + 5, box[1] - 10);
+                }
+            }
+            
+            // Update metrics
+            function updateMetrics(detections) {
+                const now = Date.now();
+                
+                // Update face count
+                faceCountEl.textContent = detections.length;
+                
+                // Clear old faces
+                Object.keys(detectedFaces).forEach(id => {
+                    if (now - detectedFaces[id].lastSeen > 5000) {
+                        delete detectedFaces[id];
+                    }
+                });
+                
+                // Update with new detections
+                detections.forEach(detection => {
+                    const id = detection.id;
+                    const confidence = detection.confidence;
+                    
+                    if (!detectedFaces[id]) {
+                        detectedFaces[id] = {
+                            firstSeen: now,
+                            lastSeen: now,
+                            count: 1,
+                            confidence: confidence
+                        };
+                    } else {
+                        detectedFaces[id].lastSeen = now;
+                        detectedFaces[id].count++;
+                        detectedFaces[id].confidence = confidence;
+                    }
+                });
+                
+                // Update ID count
+                idCountEl.textContent = Object.keys(detectedFaces).length;
+                
+                // Update detections list
+                updateDetectionsList();
+                
+                // Update status
+                statusEl.textContent = `Processing active - ${detections.length} faces found` + 
+                    (aiDetectionEnabled ? ' (AI Detection ON)' : '');
+                statusEl.className = 'alert alert-success text-center';
+            }
+            
+            // Update the detections list UI
+            function updateDetectionsList() {
+                detectionsList.innerHTML = '';
+                
+                const faceIds = Object.keys(detectedFaces).sort((a, b) => {
+                    return detectedFaces[b].lastSeen - detectedFaces[a].lastSeen;
+                });
+                
+                if (faceIds.length === 0) {
+                    detectionsList.innerHTML = '<p class="text-muted">No faces detected yet</p>';
+                    return;
+                }
+                
+                faceIds.forEach(id => {
+                    const face = detectedFaces[id];
+                    const now = Date.now();
+                    const isActive = (now - face.lastSeen) < 2000;
+                    
+                    const detectionItem = document.createElement('div');
+                    detectionItem.className = `alert ${isActive ? 'alert-success' : 'alert-secondary'} d-flex justify-content-between align-items-center mb-2`;
+                    
+                    const confidence = Math.round(face.confidence * 100);
+                    
+                    detectionItem.innerHTML = `
+                        <div>ID: <strong>${id}</strong></div>
+                        <div>Confidence: ${confidence}%</div>
+                    `;
+                    
+                    detectionsList.appendChild(detectionItem);
+                });
+            }
+            
+            // Start detection
+            startBtn.addEventListener('click', function() {
+                isProcessing = true;
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                statusEl.textContent = "Starting face detection...";
+                statusEl.className = 'alert alert-info text-center';
+                
+                // Start processing frames
+                processFrame();
+                processingInterval = setInterval(processFrame, 200); // 5 fps
+            });
+            
+            // Stop detection
+            stopBtn.addEventListener('click', function() {
+                isProcessing = false;
+                stopBtn.style.display = 'none';
+                startBtn.style.display = 'inline-block';
+                clearInterval(processingInterval);
+                
+                originalCtx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
+                processedCtx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+                
+                statusEl.textContent = "Detection stopped";
+                statusEl.className = 'alert alert-warning text-center';
+            });
+
+            // Toggle AI Detection
+            aiDetectionToggle.addEventListener('change', function() {
+                aiDetectionEnabled = this.checked;
+                statusEl.textContent = aiDetectionEnabled ? 
+                    "AI Detection enabled" : 
+                    "AI Detection disabled";
+                
+                if (isProcessing) {
+                    statusEl.textContent += " - processing active";
+                }
+                
+                statusEl.className = 'alert alert-info text-center';
+            });
+            
+            // Initialize
+            setupCamera();
+            
+            // Clean up
+            window.addEventListener('beforeunload', function() {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                clearInterval(processingInterval);
+            });
+        });
+    </script>
+</body>
+</html> 

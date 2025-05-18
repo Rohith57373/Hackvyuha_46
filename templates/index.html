@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Monitoring System</title>
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script>tailwind.config={theme:{extend:{colors:{primary:'#3b82f6',secondary:'#64748b'},borderRadius:{'none':'0px','sm':'4px',DEFAULT:'8px','md':'12px','lg':'16px','xl':'20px','2xl':'24px','3xl':'32px','full':'9999px','button':'8px'}}}}</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
+    <style>
+        :where([class^="ri-"])::before { content: "\f3c2"; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .camera-card {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .camera-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .video-container {
+            aspect-ratio: 16/9;
+            background-color: #000;
+            position: relative;
+            overflow: hidden;
+        }
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 40%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .camera-card:hover .video-overlay {
+            opacity: 1;
+        }
+        .modal {
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .status-online {
+            background-color: #10b981;
+        }
+        .status-offline {
+            background-color: #ef4444;
+        }
+        .status-warning {
+            background-color: #f59e0b;
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .custom-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .custom-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e2e8f0;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .switch-slider {
+            background-color: #3b82f6;
+        }
+        input:checked + .switch-slider:before {
+            transform: translateX(20px);
+        }
+        
+        /* Detected individuals styles */
+        #individualsList {
+            transition: opacity 0.2s ease;
+        }
+        #detectedIndividualsSection {
+            transition: all 0.3s ease;
+        }
+        #detectedIndividualsSection.hidden {
+            display: none;
+        }
+        .camera-upload-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .camera-upload-modal.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            width: 100%;
+            max-width: 700px;
+            background-color: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-body {
+            padding: 1.25rem;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .modal-footer {
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen flex flex-col" >
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 flex items-center justify-center text-primary">
+                        <i class="ri-cctv-fill ri-2x"></i>
+                    </div>
+                    <h1 class="text-xl font-['Pacifico'] text-gray-800">SecureView</h1>
+                </div>
+                
+                <div class="flex items-center gap-6">
+                    <div class="relative flex items-center gap-2">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <div class="w-5 h-5 flex items-center justify-center text-gray-400">
+                                    <i class="ri-search-line"></i>
+                                </div>
+                            </div>
+                            <input type="text" class="bg-gray-50 border-none text-gray-900 text-sm rounded-lg block w-64 pl-10 p-2.5 focus:ring-2 focus:ring-primary/20 focus:outline-none" placeholder="Search cameras...">
+                        </div>
+                        
+                        <button id="uploadImageBtn" class="bg-primary hover:bg-primary/90 text-white flex items-center gap-1 py-2 px-3 rounded-lg text-sm font-medium">
+                            <i class="ri-image-add-line"></i>
+                            <span>Upload Image</span>
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <button class="relative p-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-full transition-colors">
+                            <div class="w-6 h-6 flex items-center justify-center">
+                                <i class="ri-notification-3-line"></i>
+                            </div>
+                            <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                        </button>
+                        
+                        <button class="p-2 text-gray-600 hover:text-primary hover:bg-blue-50 rounded-full transition-colors">
+                            <div class="w-6 h-6 flex items-center justify-center">
+                                <i class="ri-settings-3-line"></i>
+                            </div>
+                        </button>
+                        
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-gray-200 rounded-full overflow-hidden">
+                                <img src="https://readdy.ai/api/search-image?query=professional%20headshot%20of%20a%20security%20officer%2C%20male%2C%2040s%2C%20serious%20expression%2C%20security%20uniform%2C%20high%20quality%20portrait&width=100&height=100&seq=1&orientation=squarish" alt="User profile" class="w-full h-full object-cover">
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">James Wilson</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Navigation Bar -->
+        <nav class="nav-container">
+            <div class="container mx-auto">
+                <div class="nav-menu">
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link active">
+                                <div class="nav-icon">
+                                    <i class="ri-dashboard-line"></i>
+                                </div>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item nav-dropdown">
+                            <a href="{{ url_for('live_feed') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-cctv-line"></i>
+                                </div>
+                                <span>Cameras</span>
+                            </a>
+                            <div class="nav-dropdown-content">
+                                <div class="nav-dropdown-header">
+                                    <h3 class="text-sm font-medium text-gray-700">Available Videos</h3>
+                                </div>
+                                <div class="nav-dropdown-list">
+                                    {% for id, camera in cameras.items() %}
+                                    <a href="{{ url_for('index', camera_id=id) }}" class="nav-dropdown-item">
+                                        <div class="camera-icon">
+                                            <i class="ri-video-line"></i>
+                                        </div>
+                                        <span>{{ camera.title }}</span>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                                <div class="nav-dropdown-footer">
+                                    <button class="add-camera-btn" id="addCameraBtn">
+                                        <div class="camera-icon">
+                                            <i class="ri-add-line"></i>
+                                        </div>
+                                        <span>Upload New Video</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('analytics') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-bar-chart-2-line"></i>
+                                </div>
+                                <span>Analytics</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('alerts') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-alarm-warning-line"></i>
+                                </div>
+                                <span>Alerts</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('user_profile') }}" class="nav-link">
+                                <div class="nav-icon">
+                                    <i class="ri-user-line"></i>
+                                </div>
+                                <span>Profile</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <!-- Controls Bar -->
+            <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Live Camera Feeds</h2>
+                    <div class="flex items-center gap-2 text-sm text-gray-500">
+                        <div class="flex items-center gap-1">
+                            <div class="status-indicator status-online"></div>
+                            <span>Online: 4</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <div class="status-indicator status-warning"></div>
+                            <span>Warning: 0</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <div class="status-indicator status-offline"></div>
+                            <span>Offline: 0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center bg-white rounded-lg shadow-sm p-1">
+                        <button class="flex items-center justify-center p-2 rounded-full bg-primary text-white">
+                            <div class="w-5 h-5 flex items-center justify-center">
+                                <i class="ri-layout-grid-line"></i>
+                            </div>
+                        </button>
+                        <button class="flex items-center justify-center p-2 rounded-full text-gray-500 hover:bg-gray-100">
+                            <div class="w-5 h-5 flex items-center justify-center">
+                                <i class="ri-list-check-2"></i>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <a href="{{ url_for('create_room') }}" class="px-4 py-2 text-white bg-primary hover:bg-primary/90 rounded-lg flex items-center gap-2">
+                        <div class="w-5 h-5 flex items-center justify-center">
+                            <i class="ri-add-line"></i>
+                        </div>
+                        <span>Start WebRTC Stream</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Camera Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {% for camera_id, camera in cameras.items() %}
+                <!-- Camera {{ camera_id }} -->
+                <div class="camera-card bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer" data-camera="{{ camera_id }}">
+                    <div class="video-container">
+                        <img src="{{ url_for('video_feed', camera_id=camera_id) }}" alt="Camera Feed" class="w-full h-full object-cover">
+                        <div class="video-overlay flex items-end p-3">
+                            <button class="text-white bg-primary/90 hover:bg-primary p-2 rounded-full !rounded-button whitespace-nowrap">
+                                <div class="w-5 h-5 flex items-center justify-center">
+                                    <i class="ri-fullscreen-line"></i>
+                                </div>
+                            </button>
+                        </div>
+                        <div class="absolute top-3 right-3 flex items-center gap-2 bg-black/50 px-2 py-1 rounded-full">
+                            <div class="status-indicator status-online"></div>
+                            <span class="text-xs text-white">Live</span>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-medium text-gray-800">{{ camera.title }}</h3>
+                            <span class="text-xs text-gray-500">Camera {{ camera_id }}</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <span class="text-xs text-gray-500">ID: CAM-{{ camera_id.zfill(3) }}</span>
+                            <span class="text-xs text-gray-500">{{ camera.width }}x{{ camera.height }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-span-full py-8 text-center">
+                    <div class="bg-gray-100 rounded-lg p-8 max-w-xl mx-auto">
+                        <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="ri-video-line text-gray-400 text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-medium text-gray-700 mb-2">No Cameras Found</h3>
+                        <p class="text-gray-500 mb-4">Please add video files to the "videos" folder to display cameras.</p>
+                        <p class="text-sm text-gray-400">Supported formats: .mp4, .webm, .avi, .mov, .mkv, .flv</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Detected Individuals Section -->
+            <div id="detectedIndividualsSection" class="mt-8 hidden">
+                <div class="bg-white rounded-lg shadow-sm p-4">
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b">
+                        <div>
+                            <h2 class="text-xl font-bold">Detected Individuals</h2>
+                            <p class="text-sm text-gray-500 mt-1">
+                                Individuals identified across camera views with cross-camera matching
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="bg-blue-100 rounded-lg px-3 py-1 flex items-center">
+                                <span class="text-sm font-medium mr-2">Individuals:</span>
+                                <span id="individualCount" class="text-blue-700 font-bold">0</span>
+                            </div>
+                            <div class="bg-green-100 rounded-lg px-3 py-1 flex items-center">
+                                <span class="text-sm font-medium mr-2">Cross-Camera:</span>
+                                <span id="crossCameraCount" class="text-green-700 font-bold">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm font-medium text-gray-700 flex items-center gap-1">
+                                <i class="ri-information-line"></i>
+                                <span>Same individuals across cameras are assigned the same ID</span>
+                            </div>
+                            <span id="lastUpdated" class="text-xs text-gray-500">Updated: --:--:--</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            <!-- Loading state -->
+                            <div id="individualsLoading" class="col-span-full flex justify-center items-center py-8">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            </div>
+                            
+                            <!-- No individuals state -->
+                            <div id="noIndividuals" class="col-span-full flex flex-col justify-center items-center py-8">
+                                <i class="ri-user-search-line text-4xl text-gray-300"></i>
+                                <p class="mt-2 text-gray-500">No individuals detected</p>
+                            </div>
+                            
+                            <!-- Individuals will be inserted here via JS -->
+                            <div id="individualsList" class="col-span-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cross-camera matching explanation -->
+                    <div class="bg-gray-50 rounded-lg p-3 mt-4 text-sm text-gray-600">
+                        <h3 class="font-medium text-gray-900 mb-1">About Cross-Camera Matching</h3>
+                        <p class="mb-2">
+                            The system uses multiple features to track individuals across different cameras:
+                        </p>
+                        <ul class="list-disc pl-5 space-y-1 text-xs">
+                            <li>Deep visual features for robust identification</li>
+                            <li>Color profile consistency across viewpoints</li>
+                            <li>Temporal awareness for realistic movements between cameras</li>
+                            <li>Match confidence displays the system's certainty about identification</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Camera Modal -->
+        <div id="cameraModal" class="modal fixed inset-0 bg-black/80 z-50 flex items-center justify-center opacity-0 invisible">
+            <div class="bg-white rounded-lg shadow-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-lg font-semibold text-gray-800" id="modalCameraTitle">Main Entrance</h3>
+                        <div class="flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded-full">
+                            <div class="status-indicator status-online" id="modalStatusIndicator"></div>
+                            <span class="text-xs font-medium text-gray-600" id="modalStatusText">Live</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full">
+                            <div class="w-5 h-5 flex items-center justify-center">
+                                <i class="ri-download-2-line"></i>
+                            </div>
+                        </button>
+                        <button class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full">
+                            <div class="w-5 h-5 flex items-center justify-center">
+                                <i class="ri-more-2-fill"></i>
+                        </div>
+                        </button>
+                        <button id="closeModal" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full">
+                            <div class="w-5 h-5 flex items-center justify-center">
+                                <i class="ri-close-line"></i>
+                        </div>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Modal Content -->
+                <div class="flex-1 flex overflow-hidden">
+                    <!-- Main Video Feed -->
+                    <div class="flex-1 bg-black relative">
+                        <img id="modalCameraFeed" src="" alt="Camera Feed" class="w-full h-full object-contain">
+                        
+                        <!-- Video Controls -->
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                            <div class="flex items-center justify-between text-white">
+                                <div class="flex items-center gap-3">
+                                    <button class="p-2 hover:bg-white/10 rounded-full">
+                                        <div class="w-6 h-6 flex items-center justify-center">
+                                            <i class="ri-play-fill"></i>
+                                        </div>
+                                    </button>
+                                    <div class="flex items-center gap-2">
+                                        <button class="p-2 hover:bg-white/10 rounded-full">
+                                            <div class="w-5 h-5 flex items-center justify-center">
+                                                <i class="ri-rewind-mini-fill"></i>
+                                            </div>
+                                        </button>
+                                        <button class="p-2 hover:bg-white/10 rounded-full">
+                                            <div class="w-5 h-5 flex items-center justify-center">
+                                                <i class="ri-speed-mini-fill"></i>
+                                            </div>
+                                        </button>
+                                    </div>
+                                    <span class="text-sm">15:42:33</span>
+                                </div>
+                                
+                                <div class="flex items-center gap-3">
+                                    <button class="p-2 hover:bg-white/10 rounded-full">
+                                        <div class="w-5 h-5 flex items-center justify-center">
+                                            <i class="ri-camera-line"></i>
+                                        </div>
+                                    </button>
+                                    <button class="p-2 hover:bg-white/10 rounded-full">
+                                        <div class="w-5 h-5 flex items-center justify-center">
+                                            <i class="ri-record-circle-line"></i>
+                                        </div>
+                                    </button>
+                                    <button class="p-2 hover:bg-white/10 rounded-full">
+                                <div class="w-5 h-5 flex items-center justify-center">
+                                    <i class="ri-fullscreen-line"></i>
+                                </div>
+                            </button>
+                        </div>
+                            </div>
+                            
+                            <!-- Timeline -->
+                            <div class="mt-4">
+                                <div class="relative w-full h-1 bg-white/30 rounded-full overflow-hidden">
+                                    <div class="absolute left-0 top-0 bottom-0 w-3/4 bg-primary rounded-full"></div>
+                                    <div class="absolute left-[75%] top-0 bottom-0 w-1 bg-white rounded-full transform -translate-x-1/2"></div>
+                                </div>
+                                <div class="flex items-center justify-between mt-2 text-xs text-gray-300">
+                                    <span>15:00:00</span>
+                                    <span>15:30:00</span>
+                                    <span>16:00:00</span>
+                                    <span>16:30:00</span>
+                                    <span>17:00:00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Side Panel -->
+                    <div class="w-80 border-l border-gray-200 flex flex-col bg-gray-50">
+                        <!-- Camera Details -->
+                        <div class="p-4 border-b border-gray-200">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Camera Details</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-500">Camera ID:</span>
+                                    <span class="text-gray-700 font-medium" id="modalCameraId">CAM-001</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-500">Location:</span>
+                                    <span class="text-gray-700 font-medium" id="modalCameraLocation">Building A</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-500">Resolution:</span>
+                                    <span class="text-gray-700 font-medium">1080p</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-500">FPS:</span>
+                                    <span class="text-gray-700 font-medium">30</span>
+                                </div>
+                        <div class="flex items-center justify-between">
+                                    <span class="text-gray-500">Last Maintenance:</span>
+                                    <span class="text-gray-700 font-medium">Apr 28, 2025</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Settings -->
+                        <div class="p-4 border-b border-gray-200">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Settings</h4>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Stream Quality</span>
+                                    <div class="relative">
+                                        <button class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50 !rounded-button whitespace-nowrap">
+                                            <span>High (1080p)</span>
+                                            <div class="w-4 h-4 flex items-center justify-center">
+                                                <i class="ri-arrow-down-s-line"></i>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Motion Detection</span>
+                                    <label class="custom-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Face Recognition</span>
+                                    <label class="custom-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Audio Recording</span>
+                                    <label class="custom-switch">
+                                        <input type="checkbox">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">AI Face Detection</span>
+                                    <label class="custom-switch">
+                                        <input type="checkbox" id="aiDetectionToggle" {% if model_enabled %}checked{% endif %}>
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Events -->
+                        <div class="flex-1 p-4 overflow-y-auto">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Recent Events</h4>
+                            <div class="space-y-3">
+                                <div class="bg-white p-3 rounded border border-gray-200">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-8 h-8 flex items-center justify-center bg-yellow-100 text-yellow-600 rounded-full flex-shrink-0">
+                                            <i class="ri-user-follow-line"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="text-sm font-medium text-gray-800">Person Detected</h5>
+                                            <p class="text-xs text-gray-500 mt-1">Unidentified person entered the area</p>
+                                            <span class="text-xs text-gray-400 block mt-1">15:38:12</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-white p-3 rounded border border-gray-200">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-8 h-8 flex items-center justify-center bg-green-100 text-green-600 rounded-full flex-shrink-0">
+                                            <i class="ri-user-smile-line"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="text-sm font-medium text-gray-800">Employee Recognized</h5>
+                                            <p class="text-xs text-gray-500 mt-1">Emily Johnson (ID: EMP-2341)</p>
+                                            <span class="text-xs text-gray-400 block mt-1">15:32:45</span>
+                        </div>
+                    </div>
+                </div>
+                
+                                <div class="bg-white p-3 rounded border border-gray-200">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-8 h-8 flex items-center justify-center bg-green-100 text-green-600 rounded-full flex-shrink-0">
+                                            <i class="ri-user-smile-line"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="text-sm font-medium text-gray-800">Employee Recognized</h5>
+                                            <p class="text-xs text-gray-500 mt-1">Michael Thompson (ID: EMP-1875)</p>
+                                            <span class="text-xs text-gray-400 block mt-1">15:25:18</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-white p-3 rounded border border-gray-200">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full flex-shrink-0">
+                                            <i class="ri-door-open-line"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="text-sm font-medium text-gray-800">Door Access</h5>
+                                            <p class="text-xs text-gray-500 mt-1">Main entrance door opened</p>
+                                            <span class="text-xs text-gray-400 block mt-1">15:20:33</span>
+                        </div>
+                        </div>
+                    </div>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 py-4">
+            <div class="container mx-auto px-4">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">© 2024 SecureView. All rights reserved.</p>
+                    <div class="flex items-center gap-4">
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Privacy Policy</a>
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Terms of Service</a>
+                        <a href="#" class="text-sm text-gray-500 hover:text-primary">Contact</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modal-features.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+    
+    <!-- Camera Upload Modal -->
+    <div class="camera-upload-modal" id="cameraUploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-lg font-medium text-gray-800">Upload New Video</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" id="closeModalBtn">
+                    <i class="ri-close-line text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadVideoForm" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="video_file" class="block text-sm font-medium text-gray-700 mb-2">Upload Video</label>
+                        <input type="file" id="video_file" name="video_file" accept=".mp4,.webm,.avi,.mov,.mkv"
+                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <p class="mt-1 text-xs text-gray-500">Supported formats: MP4, WebM, AVI, MOV, MKV (Max 200MB)</p>
+                    </div>
+                </form>
+                <div id="uploadStatus" class="hidden">
+                    <div class="flex items-center mb-2">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="uploadProgress" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <span id="uploadPercentage" class="text-sm text-gray-600 ml-2">0%</span>
+                    </div>
+                    <p id="uploadMessage" class="text-sm text-gray-600"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancelUploadBtn" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="button" id="submitUploadBtn" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700">
+                    Upload
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Camera upload functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const addCameraBtn = document.getElementById('addCameraBtn');
+            const cameraUploadModal = document.getElementById('cameraUploadModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+            const submitUploadBtn = document.getElementById('submitUploadBtn');
+            const uploadVideoForm = document.getElementById('uploadVideoForm');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadProgress = document.getElementById('uploadProgress');
+            const uploadPercentage = document.getElementById('uploadPercentage');
+            const uploadMessage = document.getElementById('uploadMessage');
+            
+            // Open modal
+            if (addCameraBtn) {
+                addCameraBtn.addEventListener('click', function() {
+                    cameraUploadModal.classList.add('open');
+                });
+            }
+            
+            // Close modal
+            function closeModal() {
+                cameraUploadModal.classList.remove('open');
+                uploadVideoForm.reset();
+                uploadStatus.classList.add('hidden');
+                uploadProgress.style.width = '0%';
+                uploadPercentage.textContent = '0%';
+                uploadMessage.textContent = '';
+            }
+            
+            closeModalBtn.addEventListener('click', closeModal);
+            cancelUploadBtn.addEventListener('click', closeModal);
+            
+            // Upload functionality
+            submitUploadBtn.addEventListener('click', function() {
+                const videoFile = document.getElementById('video_file').files[0];
+                
+                if (!videoFile) {
+                    alert('Please select a video file to upload');
+                    return;
+                }
+                
+                // Check file size (max 200MB)
+                if (videoFile.size > 200 * 1024 * 1024) {
+                    alert('File size exceeds 200MB limit');
+                    return;
+                }
+                
+                // Show upload status
+                uploadStatus.classList.remove('hidden');
+                uploadMessage.textContent = 'Uploading video...';
+                
+                // Create FormData
+                const formData = new FormData();
+                formData.append('video_file', videoFile);
+                
+                // Create XHR request
+                const xhr = new XMLHttpRequest();
+                
+                // Track upload progress
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        uploadProgress.style.width = percentComplete + '%';
+                        uploadPercentage.textContent = percentComplete + '%';
+                    }
+                });
+                
+                // Set up completion handler
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                uploadMessage.textContent = 'Upload successful! Refreshing...';
+                                uploadMessage.className = 'text-sm text-green-600';
+                                
+                                // Reload the page after a short delay
+                                setTimeout(function() {
+                                    window.location.reload();
+                                }, 1500);
+                            } else {
+                                uploadMessage.textContent = 'Error: ' + (response.error || 'Unknown error');
+                                uploadMessage.className = 'text-sm text-red-600';
+                            }
+                        } catch (e) {
+                            uploadMessage.textContent = 'Error parsing response';
+                            uploadMessage.className = 'text-sm text-red-600';
+                        }
+                    } else {
+                        uploadMessage.textContent = 'Error: ' + xhr.statusText;
+                        uploadMessage.className = 'text-sm text-red-600';
+                    }
+                };
+                
+                // Set up error handler
+                xhr.onerror = function() {
+                    uploadMessage.textContent = 'Network error occurred';
+                    uploadMessage.className = 'text-sm text-red-600';
+                };
+                
+                // Send the request
+                xhr.open('POST', '/api/upload_video', true);
+                xhr.send(formData);
+            });
+        });
+    </script>
+    
+    {% if selected_camera %}
+    <script>
+        // Automatically open the camera modal when a specific camera is selected
+        document.addEventListener('DOMContentLoaded', function() {
+            // Find the camera card with the selected camera ID
+            const cameraCard = document.querySelector('.camera-card[data-camera="{{ selected_camera }}"]');
+            if (cameraCard) {
+                // Trigger a click event on the card to open the modal
+                setTimeout(() => {
+                    cameraCard.click();
+                }, 500); // Small delay to ensure everything is loaded
+            }
+        });
+    </script>
+    {% endif %}
+
+    <!-- Chatbot -->
+    <div id="chatbot-container" class="chatbot-container">
+        <!-- ... existing chatbot code ... -->
+    </div>
+
+    <!-- Image Search Modal -->
+    <div id="imageSearchModal" class="camera-upload-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-lg font-semibold">Search by Face Image</h3>
+                <button id="closeImageSearchModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="ri-close-line text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="imageSearchForm" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Upload a face image to search for matches
+                        </label>
+                        <div class="flex items-center justify-center w-full">
+                            <label class="flex flex-col w-full h-44 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <div id="dropArea" class="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <i class="ri-upload-cloud-2-line text-3xl text-gray-400 mb-2"></i>
+                                    <p class="text-sm text-gray-500">
+                                        <span class="font-semibold">Click to upload</span> or drag and drop
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        JPG, PNG, GIF (Max 5MB)
+                                    </p>
+                                </div>
+                                <div id="imagePreviewContainer" class="hidden w-full h-full flex items-center justify-center">
+                                    <img id="imagePreview" class="max-h-40 max-w-full object-contain" src="#" alt="Image Preview">
+                                </div>
+                                <input id="imageInput" name="image" type="file" class="hidden" accept="image/*" />
+                            </label>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Search Results -->
+                <div id="searchResults" class="hidden mt-4">
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">
+                        Matching Cameras
+                    </h4>
+                    <div id="searchResultsList" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelImageSearch" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                    Cancel
+                </button>
+                <button id="submitImageSearch" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg" disabled>
+                    Search
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Image Search Functionality
+            const imageSearchModal = document.getElementById('imageSearchModal');
+            const uploadImageBtn = document.getElementById('uploadImageBtn');
+            const closeImageSearchModal = document.getElementById('closeImageSearchModal');
+            const cancelImageSearch = document.getElementById('cancelImageSearch');
+            const imageInput = document.getElementById('imageInput');
+            const dropArea = document.getElementById('dropArea');
+            const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+            const imagePreview = document.getElementById('imagePreview');
+            const submitImageSearch = document.getElementById('submitImageSearch');
+            const searchResults = document.getElementById('searchResults');
+            const searchResultsList = document.getElementById('searchResultsList');
+            
+            // Open modal on button click
+            uploadImageBtn.addEventListener('click', () => {
+                imageSearchModal.classList.add('open');
+            });
+            
+            // Close modal
+            const closeModal = () => {
+                imageSearchModal.classList.remove('open');
+                resetForm();
+            };
+            
+            closeImageSearchModal.addEventListener('click', closeModal);
+            cancelImageSearch.addEventListener('click', closeModal);
+            
+            // Close modal when clicking outside
+            imageSearchModal.addEventListener('click', (e) => {
+                if (e.target === imageSearchModal) {
+                    closeModal();
+                }
+            });
+            
+            // File input change
+            imageInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    const file = e.target.files[0];
+                    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                        alert('File size exceeds 5MB. Please choose a smaller file.');
+                        resetForm();
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.src = e.target.result;
+                        dropArea.classList.add('hidden');
+                        imagePreviewContainer.classList.remove('hidden');
+                        submitImageSearch.disabled = false;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // Reset form
+            const resetForm = () => {
+                imageInput.value = '';
+                dropArea.classList.remove('hidden');
+                imagePreviewContainer.classList.add('hidden');
+                submitImageSearch.disabled = true;
+                searchResults.classList.add('hidden');
+                searchResultsList.innerHTML = '';
+            };
+            
+            // Drag and drop functionality
+            ['dragover', 'dragenter'].forEach(eventName => {
+                dropArea.addEventListener(eventName, e => {
+                    e.preventDefault();
+                    dropArea.classList.add('bg-gray-50');
+                }, false);
+            });
+            
+            ['dragleave', 'dragend'].forEach(eventName => {
+                dropArea.addEventListener(eventName, e => {
+                    e.preventDefault();
+                    dropArea.classList.remove('bg-gray-50');
+                }, false);
+            });
+            
+            dropArea.addEventListener('drop', e => {
+                e.preventDefault();
+                dropArea.classList.remove('bg-gray-50');
+                
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    imageInput.files = e.dataTransfer.files;
+                    const event = new Event('change', { bubbles: true });
+                    imageInput.dispatchEvent(event);
+                }
+            }, false);
+            
+            // Submit search
+            submitImageSearch.addEventListener('click', () => {
+                if (!imageInput.files || !imageInput.files[0]) return;
+                
+                const formData = new FormData();
+                formData.append('image', imageInput.files[0]);
+                
+                // Change button to loading state
+                submitImageSearch.disabled = true;
+                submitImageSearch.innerHTML = '<span class="inline-block animate-spin mr-2">↻</span> Searching...';
+                
+                fetch('/api/search_by_image', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Reset button
+                    submitImageSearch.disabled = false;
+                    submitImageSearch.innerHTML = 'Search';
+                    
+                    // Display results
+                    if (data.success) {
+                        searchResults.classList.remove('hidden');
+                        searchResultsList.innerHTML = '';
+                        
+                        if (data.cameras.length > 0) {
+                            data.cameras.forEach(camera => {
+                                const cameraItem = document.createElement('div');
+                                cameraItem.className = 'flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer border border-gray-200 transition-all hover:shadow-md';
+                                cameraItem.innerHTML = `
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                                            <i class="ri-cctv-fill"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-sm">${camera.title}</h5>
+                                            <span class="text-xs text-gray-500">Camera ${camera.id}</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">
+                                        ${camera.confidence}
+                                    </div>
+                                `;
+                                
+                                // Navigate to camera on click
+                                cameraItem.addEventListener('click', () => {
+                                    window.location.href = `/?camera_id=${camera.id}`;
+                                });
+                                
+                                searchResultsList.appendChild(cameraItem);
+                            });
+                        } else {
+                            searchResultsList.innerHTML = `
+                                <div class="text-center py-4">
+                                    <p class="text-gray-500">No matching cameras found</p>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        alert(`Error: ${data.error || 'Failed to search'}`);
+                    }
+                })
+                .catch(error => {
+                    submitImageSearch.disabled = false;
+                    submitImageSearch.innerHTML = 'Search';
+                    alert('An error occurred during the search');
+                    console.error('Search error:', error);
+                });
+            });
+        });
+    </script>
+</body>
+</html> 
